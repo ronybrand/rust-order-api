@@ -13,7 +13,7 @@ lint:
 
 # A real PostgreSQL and RabbitMQ. Without them these tests say so and pass; with REQUIRE_INTEGRATION=1 they fail.
 #   docker compose up -d postgres rabbitmq
-#   TEST_DATABASE_URL=postgres://orders:orders@127.0.0.1:5432/postgres TEST_AMQP_URL=amqp://guest:guest@127.0.0.1:5672/
+#   TEST_DATABASE_URL=postgres://orders:orders@127.0.0.1:5432/postgres TEST_AMQP_URL=amqp://guest:guest@127.0.0.1:5672/%2f
 integration:
 	cargo test --test integration --locked
 

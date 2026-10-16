@@ -4,7 +4,7 @@
 //!
 //! - `TEST_DATABASE_URL`: an admin connection, e.g. `postgres://orders:orders@127.0.0.1:5432/postgres`. Every test makes
 //!   its own database and drops it.
-//! - `TEST_AMQP_URL`: a broker, e.g. `amqp://guest:guest@127.0.0.1:5672/`.
+//! - `TEST_AMQP_URL`: a broker, e.g. `amqp://guest:guest@127.0.0.1:5672/%2f` (the vhost `/` written out: the test client, unlike the application, does not turn an empty vhost into it).
 //!
 //! Without a variable the tests that need it say so and pass, so `cargo test` works on a bare machine. CI sets
 //! `REQUIRE_INTEGRATION=1`, and then a missing service is a failure: a skipped test must never look like a green one

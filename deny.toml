@@ -3,9 +3,14 @@
 [advisories]
 version = 2
 yanked = "deny"
-# Nothing is ignored. An advisory that cannot be fixed yet gets an entry here with its id and the reason, never a
-# blanket allow.
-ignore = []
+# An advisory that cannot be fixed yet gets an entry here with its id and the reason, never a blanket allow.
+ignore = [
+  # RUSTSEC-2023-0071 (Marvin attack, timing side channel in RSA *private* key operations; no fix exists). It reaches
+  # the tree through `rsa`, which `jsonwebtoken` uses to verify RS256 signatures. This service only verifies, with the
+  # public key, and ADR 0005 makes it refuse a private one: the vulnerable operation is never performed. `rsa` is also
+  # used by the tests to make a throwaway key. Remove this entry when `rsa` has a fixed release.
+  { id = "RUSTSEC-2023-0071", reason = "private-key operations only; this service verifies with the public key" },
+]
 
 [licenses]
 version = 2

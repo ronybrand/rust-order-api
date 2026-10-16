@@ -105,7 +105,7 @@ Os testes de integração são dirigidos por variáveis de ambiente:
 | Variável | Para quê |
 |---|---|
 | `TEST_DATABASE_URL` | conexão administrativa de um PostgreSQL (`postgres://orders:orders@127.0.0.1:5432/postgres`); cada teste cria o próprio banco e o remove |
-| `TEST_AMQP_URL` | um RabbitMQ (`amqp://guest:guest@127.0.0.1:5672/`) |
+| `TEST_AMQP_URL` | um RabbitMQ (`amqp://guest:guest@127.0.0.1:5672/%2f`) |
 | `REQUIRE_INTEGRATION=1` | faz a falta de um serviço **falhar** o teste em vez de pulá-lo; o CI sempre define |
 
 Sem as variáveis os testes que dependem delas dizem que foram pulados e passam, para que `cargo test` rode numa máquina vazia. Os testes de SMTP não precisam de nada: falam com um servidor SMTP mínimo dentro do próprio processo.
