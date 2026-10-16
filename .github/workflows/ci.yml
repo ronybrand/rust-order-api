@@ -1,0 +1,146 @@
+name: CI
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A newer push to a pull request makes the older run pointless; a run on main is never cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  # The services the integration tests need. REQUIRE_INTEGRATION makes a missing one a failure, never a skip.
+  REQUIRE_INTEGRATION: "1"
+  TEST_DATABASE_URL: postgres://orders:orders@127.0.0.1:5432/postgres
+  TEST_AMQP_URL: amqp://guest:guest@127.0.0.1:5672/
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: orders
+          POSTGRES_PASSWORD: orders
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U orders" --health-interval 5s --health-timeout 5s --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # The toolchain is the one pinned in rust-toolchain.toml.
+      - name: Install the pinned toolchain
+        run: |
+          rustup toolchain install
+          rustup component add llvm-tools
+          rustc --version
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-llvm-cov
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      # Unit tests, then the integration tests against the PostgreSQL and the RabbitMQ above, measured together; the
+      # floor is on the lines of the whole crate, the process entry points included.
+      - name: Tests and the coverage floor
+        run: cargo llvm-cov --locked --lcov --output-path lcov.info --fail-under-lines 80
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage
+          path: lcov.info
+          retention-days: 7
+
+  # Advisories (RustSec), licenses, where crates come from, and the one-crypto-provider rule (deny.toml).
+  deny:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-deny
+      - run: cargo deny --locked check
+
+  # The Dockerfile is what ships, and the test suites never build it: a break (a base image tag, a moved binary) would
+  # only show up at deploy time. Builds both targets without pushing.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, worker]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          build-args: TARGET=${{ matrix.target }}
+          load: true
+          push: false
+          tags: rust-order-api-${{ matrix.target }}:ci
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+      - name: Image size, and what is in it
+        run: |
+          image="rust-order-api-${{ matrix.target }}:ci"
+          size=$(docker image inspect "$image" --format '{{.Size}}')
+          compressed=$(docker save "$image" | gzip -c | wc -c)
+          echo "image size: $((size / 1024 / 1024)) MB uncompressed, about $((compressed / 1024 / 1024)) MB compressed"
+          echo "### Image size (${{ matrix.target }}): $((size / 1024 / 1024)) MB uncompressed, about $((compressed / 1024 / 1024)) MB compressed" >> "$GITHUB_STEP_SUMMARY"
+          # `scratch` plus one file: if anything else is ever added to the image, this fails and asks why.
+          test "$(docker image inspect "$image" --format '{{len .RootFS.Layers}}')" = "1"
+
+  # Everything above checks the pieces. This starts the real stack from docker-compose.yml (PostgreSQL, RabbitMQ,
+  # Mailpit, the API and the worker), signs tokens like the issuer would, and follows one order from creation to the
+  # e-mail that confirming it sends: the only check that exercises both processes inside their containers.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: End-to-end smoke test
+        run: bash scripts/smoke.sh
+
+  # CodeQL covers the Rust code; this scans the repository itself: committed secrets, misconfiguration of the
+  # Dockerfile and the compose file, and known-vulnerable dependencies from Cargo.lock.
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

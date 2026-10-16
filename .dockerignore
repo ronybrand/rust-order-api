@@ -1,0 +1,7 @@
+target/
+.git/
+.github/
+docs/
+keys/
+*.md
+lcov.info

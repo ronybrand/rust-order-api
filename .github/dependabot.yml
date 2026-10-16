@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    # Wait 3 days before proposing a brand-new release: a compromised crate is usually caught within hours, and
+    # security updates are not delayed by this.
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 10
+    groups:
+      # The async stack is released as sets.
+      tokio-stack:
+        patterns:
+          - "tokio*"
+          - "axum*"
+          - "tower*"
+          - "hyper*"
+          - "http*"
+      sqlx:
+        patterns:
+          - "sqlx*"
+      weekly-batch:
+        patterns:
+          - "*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
+    groups:
+      weekly-batch:
+        patterns:
+          - "*"
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3

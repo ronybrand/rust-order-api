@@ -1,0 +1,46 @@
+name: Supply chain
+
+# The bill of materials of what ships (the resolved Cargo.lock graph, transitive crates included) scanned for known
+# vulnerabilities. It runs on every change and weekly: a new advisory against a crate already in use shows up without
+# any pull request.
+#
+# Unlike a Gradle build, GitHub's dependency graph reads Cargo.lock natively, so the dependency review and Dependabot
+# alerts see every crate with no extra step: this scan is a second, independent opinion (Trivy's database, not
+# RustSec's), and the SBOM is kept as an artifact.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  sbom-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-cyclonedx
+      - name: Generate the SBOM
+        run: cargo cyclonedx --format json --override-filename bom
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: bom.json
+          retention-days: 30
+      # HIGH/CRITICAL findings with a fix available fail the run; unfixed ones are noise nobody can act on yet.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: sbom
+          scan-ref: bom.json
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

@@ -1,0 +1,48 @@
+# Local development stack. Every port is bound to 127.0.0.1: nothing here is meant to be reachable from the network.
+# The credentials below are throwaway values for this machine only.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+      POSTGRES_DB: orders
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orders"]
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
+
+  api:
+    build: { context: ., args: { TARGET: api } }
+    depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
+    environment:
+      DATABASE_URL: postgres://orders:orders@postgres:5432/orders?sslmode=disable
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      JWT_PUBLIC_KEY_PATH: /keys/jwt_public.pem
+      JWT_AUDIENCE: order-api
+      JWT_ISSUER: https://idp.example
+    volumes: ["./keys:/keys:ro"]
+    ports: ["127.0.0.1:8080:8080"]
+
+  worker:
+    build: { context: ., args: { TARGET: worker } }
+    depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
+    environment:
+      DATABASE_URL: postgres://orders:orders@postgres:5432/orders?sslmode=disable
+      BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: orders@example.com
