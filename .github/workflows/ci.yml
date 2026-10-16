@@ -56,7 +56,7 @@ jobs:
       # Unit tests, then the integration tests against the PostgreSQL and the RabbitMQ above, measured together; the
       # floor is on the lines of the whole crate, the process entry points included.
       - name: Tests and the coverage floor
-        run: cargo llvm-cov --locked --lcov --output-path lcov.info --fail-under-lines 80
+        run: cargo llvm-cov --locked --lcov --output-path lcov.info --fail-under-lines 90
       - name: Coverage summary
         if: ${{ !cancelled() }}
         run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"

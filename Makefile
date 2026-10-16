@@ -19,7 +19,7 @@ integration:
 
 # The single local gate, same as CI: format, lints, every test and the coverage floor (needs cargo-llvm-cov).
 verify: lint
-	cargo llvm-cov --locked --fail-under-lines 85
+	cargo llvm-cov --locked --fail-under-lines 90
 
 # Needs a PostgreSQL: docker compose up -d postgres
 run-api:
