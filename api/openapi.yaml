@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: rust-order-api
+  version: 0.1.0
+  description: >
+    Customers and orders. Every route except /health requires a bearer JWT (RS256). Customer mutations
+    require the admin role. Errors always use the same envelope (see Error); the codes are listed under
+    "Error codes". Kept in sync with the router by a test (the `openapi` test in `src/http/tests.rs`).
+servers:
+  - url: http://127.0.0.1:8080
+security:
+  - bearer: []
+paths:
+  /health:
+    get:
+      summary: Health check (public, verifies the database)
+      security: []
+      responses:
+        "200": { description: Healthy }
+        "503": { description: Database unavailable }
+  /customers:
+    post:
+      summary: Create a customer (admin)
+      requestBody: { $ref: "#/components/requestBodies/Customer" }
+      responses:
+        "201": { $ref: "#/components/responses/Customer" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /customers/search:
+    get:
+      summary: Search customers with page, size and sort only
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/Size" }
+        - { $ref: "#/components/parameters/Sort" }
+      responses:
+        "200": { description: A page of customers }
+        "400": { $ref: "#/components/responses/Error" }
+    post:
+      summary: Search customers with filters
+      requestBody: { $ref: "#/components/requestBodies/Search" }
+      responses:
+        "200": { description: A page of customers }
+        "400": { $ref: "#/components/responses/Error" }
+  /customers/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+    get:
+      summary: Get a customer
+      responses:
+        "200": { $ref: "#/components/responses/Customer" }
+        "404": { $ref: "#/components/responses/Error" }
+    put:
+      summary: Replace a customer (admin)
+      requestBody: { $ref: "#/components/requestBodies/Customer" }
+      responses:
+        "200": { $ref: "#/components/responses/Customer" }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Soft-delete a customer without active orders (admin)
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /orders:
+    post:
+      summary: Create an order for an existing customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderCreate" }
+      responses:
+        "201": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+  /orders/search:
+    get:
+      summary: Search orders with page, size and sort only
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/Size" }
+        - { $ref: "#/components/parameters/Sort" }
+      responses:
+        "200": { description: A page of orders }
+        "400": { $ref: "#/components/responses/Error" }
+    post:
+      summary: Search orders with filters
+      requestBody: { $ref: "#/components/requestBodies/Search" }
+      responses:
+        "200": { description: A page of orders }
+        "400": { $ref: "#/components/responses/Error" }
+  /orders/{id}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+    get:
+      summary: Get an order with its items and total
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Soft-delete an order
+      responses:
+        "204": { description: Deleted }
+        "404": { $ref: "#/components/responses/Error" }
+  /orders/{id}/items:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+    post:
+      summary: Add an item to an OPEN order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ItemInput" }
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /orders/{id}/items/{item_id}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - { name: item_id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      summary: Change the quantity of an item of an OPEN order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 10000 }
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+    delete:
+      summary: Remove an item from an OPEN order
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /orders/{id}/confirm:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+    post:
+      summary: Confirm an OPEN order with items; notifies the customer by e-mail
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /orders/{id}/cancel:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+    post:
+      summary: Cancel an order that is not canceled yet; notifies the customer by e-mail
+      responses:
+        "200": { $ref: "#/components/responses/Order" }
+        "400": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    Sort:
+      name: sort
+      in: query
+      description: Field name; a leading "-" sorts descending. An unknown field is VALIDATION-06.
+      schema: { type: string }
+  requestBodies:
+    Customer:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/CustomerInput" }
+    Search:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Search" }
+  responses:
+    Customer:
+      description: The customer (id and name only, tax id, passport and e-mail are PII and never returned)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Customer" }
+    Order:
+      description: The order with items and derived total
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Order" }
+    Error:
+      description: Error envelope. See "Error codes" in the schema description.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    CustomerInput:
+      type: object
+      additionalProperties: false
+      required: [name, tax_id, email]
+      properties:
+        name: { type: string, maxLength: 200 }
+        tax_id: { type: string, pattern: "^[A-Za-z0-9./-]{5,20}$", description: Stored in canonical form (upper case, letters and digits only) }
+        passport_number: { type: string, pattern: "^[A-Z0-9]{6,9}$", nullable: true }
+        email: { type: string, format: email, maxLength: 320 }
+    Customer:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+    ItemInput:
+      type: object
+      additionalProperties: false
+      required: [description, unit_price, quantity]
+      properties:
+        description: { type: string, maxLength: 255 }
+        unit_price: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 99999999.99, description: At most 2 decimal places }
+        quantity: { type: integer, minimum: 1, maximum: 10000 }
+    OrderCreate:
+      type: object
+      additionalProperties: false
+      required: [customer_id]
+      properties:
+        customer_id: { type: string, format: uuid }
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ItemInput" }
+    Item:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        order_id: { type: string, format: uuid }
+        description: { type: string }
+        unit_price: { type: number }
+        quantity: { type: integer }
+        subtotal: { type: number }
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        customer_id: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, CONFIRMED, CANCELED] }
+        version: { type: integer }
+        total: { type: number }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Item" }
+    Search:
+      type: object
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        sort: { type: string }
+        filters:
+          type: object
+          description: >
+            Field name to a list of conditions. At most 10 fields, 10 conditions per field, 100 values in "in",
+            200 characters per value. Values are converted to the column type (VALIDATION-05 on mismatch).
+            Unknown filter fields are ignored. Ordering operators are rejected on enum fields.
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                op: { type: string, enum: [eq, neq, gt, gte, lt, lte, in, between, lk], default: eq }
+                value: {}
+    Error:
+      type: object
+      required: [message, code, params, request_id]
+      description: >
+        Error codes.
+        VALIDATION-01 invalid request; VALIDATION-02 order not editable; VALIDATION-03 order without items;
+        VALIDATION-04 invalid transition; VALIDATION-05 invalid filter; VALIDATION-06 unknown sort field;
+        VALIDATION-07 customer in the body does not exist; VALIDATION-08 already canceled; VALIDATION-09 item
+        limit; VALIDATION-12 body too large (413); VALIDATION-13 method not allowed (405).
+        RESOURCE-NOT-FOUND-00 unknown route; RESOURCE-NOT-FOUND-01 customer; RESOURCE-NOT-FOUND-02 order;
+        RESOURCE-NOT-FOUND-03 item.
+        CONFLICT-00 concurrent modification; CONFLICT-01 duplicate tax_id; CONFLICT-02 duplicate passport;
+        CONFLICT-03 customer has orders; CONFLICT-04 data integrity.
+        AUTH-01 unauthenticated (401); AUTH-02 forbidden (403); RATE-00 rate limit (429); INTERNAL-00
+        unexpected error (500).
+      properties:
+        message: { type: string }
+        code: { type: string, example: VALIDATION-01 }
+        params: { type: object }
+        request_id: { type: string, format: uuid }
