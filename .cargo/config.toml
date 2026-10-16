@@ -1,0 +1,5 @@
+# The dependency tree is large and most of a debug build of it is DWARF nobody reads: keep the symbol names for
+# backtraces and drop the rest. Incremental caches are off too: they are bigger than the gain on a project this size.
+[profile.dev]
+debug = 0
+incremental = false

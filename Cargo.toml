@@ -1,0 +1,93 @@
+[package]
+name = "rust-order-api"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+description = "Order API in Rust (axum, sqlx), implementing the fastapi-order-api specification."
+license = "MIT"
+publish = false
+
+[lib]
+name = "orderapi"
+path = "src/lib.rs"
+
+[[bin]]
+name = "api"
+path = "src/bin/api.rs"
+
+[[bin]]
+name = "worker"
+path = "src/bin/worker.rs"
+
+[dependencies]
+async-trait = "0.1.92"
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "query"] }
+base64 = "0.23.1"
+futures-util = "0.3.34"
+http-body-util = "0.1.5"
+hyper = "1.12.0"
+jsonwebtoken = { version = "11.1.0", features = ["rust_crypto"] }
+lapin = { version = "4.12.2", default-features = false, features = ["tokio", "rustls--ring", "rustls-webpki-roots-certs"] }
+lettre = { version = "0.11.23", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots", "hostname"] }
+regex = "1.13.1"
+rust_decimal = { version = "1.43.0", features = ["serde-arbitrary-precision"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154", features = ["arbitrary_precision"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "time", "rust_decimal", "migrate", "tls-rustls-ring-webpki", "derive", "macros"] }
+thiserror = "2.0.21"
+time = { version = "0.3.55", features = ["formatting", "parsing", "macros"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "macros", "net", "signal", "time", "sync"] }
+tower-http = { version = "0.7.1", default-features = false, features = ["catch-panic", "cors"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt", "env-filter", "ansi"] }
+uuid = { version = "1.28.0", features = ["serde", "v4"] }
+
+[dev-dependencies]
+http-body-util = "0.1"
+futures-util = "0.3.34"
+rand_core = { version = "0.6", features = ["getrandom"] }
+rsa = { version = "0.9.10", features = ["pem"] }
+tokio = { version = "1.53.3", features = ["test-util"] }
+tower = { version = "0.5.3", features = ["util"] }
+
+# The tests generate an RSA key pair, which in a debug build of the big-number code takes minutes: build those few
+# crates optimized. Nothing else changes.
+[profile.dev.package.rsa]
+opt-level = 3
+[profile.dev.package.num-bigint-dig]
+opt-level = 3
+[profile.dev.package.num-integer]
+opt-level = 3
+[profile.dev.package.num-traits]
+opt-level = 3
+[profile.dev.package.num-iter]
+opt-level = 3
+[profile.dev.package.crypto-bigint]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Documented choices, each with its reason:
+module_name_repetitions = "allow"   # `customers::CustomerService` reads fine, and the names are the domain's
+missing_errors_doc = "allow"        # every fallible function returns the crate's one error type, documented once
+missing_panics_doc = "allow"        # no function panics on purpose; the unwraps are on values proven valid
+must_use_candidate = "allow"
+too_many_lines = "allow"            # test modules are long lists of short tests
+cast_possible_truncation = "allow"  # the few casts are bounded by validation (page sizes, counters)
+cast_sign_loss = "allow"
+cast_precision_loss = "allow"
+assert_is_empty = "allow"        # `assert!(x.is_empty())` reads better than comparing with an empty array
+
+[profile.release]
+# A small static binary: the image is just this file.
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

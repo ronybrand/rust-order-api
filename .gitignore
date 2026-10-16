@@ -1,0 +1,11 @@
+/target/
+.idea/
+.vscode/
+*.iml
+keys/
+*.pem
+.env
+.env.*
+!.env.example
+lcov.info
+cobertura.xml

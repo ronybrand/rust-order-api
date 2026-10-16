@@ -1,0 +1,5 @@
+# The toolchain is pinned: a new Rust release is a reviewed change (Dependabot does not bump this file).
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
