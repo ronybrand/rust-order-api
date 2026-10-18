@@ -62,6 +62,50 @@ Erros: `{"message", "code", "params", "request_id"}`; o catálogo está em [`DOM
 
 ## Arquitetura
 
+```mermaid
+flowchart LR
+    Cmd["bin/api.rs e bin/worker.rs\n(só compõem)"]
+
+    subgraph Adapters["Adaptadores"]
+        direction TB
+        Http["http\n(axum)"]
+        Pg["persistence\n(sqlx)"]
+        Msg["messaging\n(lapin, lettre)"]
+        Auth["auth\n(JWT RS256)"]
+    end
+
+    App["app\ncasos de uso e traits\n(Store, Session, EventPublisher)"]
+    Domain["domain\nCustomer, Order, Item"]
+
+    Cmd -. compõe .-> Adapters
+    Http -- depende de --> App
+    Pg -- depende de --> App
+    Msg -- depende de --> App
+    Http -- depende de --> Auth
+    App -- depende de --> Domain
+```
+
+A dependência aponta sempre para dentro: o domínio não conhece nada, a aplicação declara o que consome e os adaptadores implementam. `error` e `config` ficam de fora do desenho: o primeiro é usado por todos, o segundo só pela composição.
+
+**Uma requisição e o e-mail que ela dispara**
+
+```mermaid
+flowchart LR
+    Client["Cliente"] -->|HTTPS| MW["Middleware\nrequest id, cabeçalhos de segurança,\nCORS, limite de corpo, rate limit"]
+    MW --> Authn["JWT RS256\n+ papel"]
+    Authn --> Handler["Handlers e middleware (http)"]
+    Handler --> Service["Serviços (app)"]
+    Service --> Store["PostgresStore"]
+    Store --> DB[("PostgreSQL")]
+    Service -->|"após o commit\n(best effort, sem outbox)"| Pub["EventPublisher"]
+    Pub --> Queue[["RabbitMQ\norder.status.changed"]]
+    Queue --> Worker["Worker (bin/worker.rs)"]
+    Worker --> Mail(["SMTP: e-mail do cliente"])
+    Worker -. "retry / DLQ" .-> Queue
+```
+
+A API e o worker são dois processos independentes, ligados só pela fila. Se o broker estiver fora do ar, a transição do pedido continua válida e a falha só é registrada ([ADR sobre a ausência de outbox](docs/adr/0003-sem-outbox-transacional.md)).
+
 ```
 src
 ├── error.rs        AppError, o catálogo de códigos e o tipo de erro único
