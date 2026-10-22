@@ -2,7 +2,7 @@
 # The credentials below are throwaway values for this machine only.
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:deb28ee471183cb0c303113dac9b2433c51eeeeb678def7af9a9ec5820367815
     environment:
       POSTGRES_USER: orders
       POSTGRES_PASSWORD: orders
@@ -14,7 +14,7 @@ services:
       retries: 10
 
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.13-management-alpine@sha256:606d8c0d6b3c18d1da9afc53bc7cdb2a8d5486df91b5a9830e9e07626c9ae281
     ports: ["127.0.0.1:5672:5672", "127.0.0.1:15672:15672"]
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
@@ -22,7 +22,7 @@ services:
       retries: 10
 
   mailpit:
-    image: axllent/mailpit:v1.20
+    image: axllent/mailpit:v1.20@sha256:7eef0f38dbc85e4e264f2edf5d70fbb694826791e05cb2cae4fc9e3282f968f5
     ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
 
   api:
