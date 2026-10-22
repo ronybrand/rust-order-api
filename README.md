@@ -48,7 +48,7 @@ Em produção a API se recusa a iniciar com audience/issuer ausentes, CORS vazio
 | `POST /orders/{id}/items`, `PATCH`/`DELETE /orders/{id}/items/{item_id}` | qualquer usuário autenticado |
 | `POST /orders/{id}/confirm`, `POST /orders/{id}/cancel` | qualquer usuário autenticado |
 
-O contrato completo está em [`api/openapi.yaml`](api/openapi.yaml), e um teste falha se ele e o roteador deixarem de descrever a mesma API (rotas, rotas públicas e códigos de erro).
+O contrato completo está em [`api/openapi.yaml`](api/openapi.yaml), e um teste falha se ele e o roteador deixarem de descrever a mesma API (rotas, rotas públicas e códigos de erro). A [documentação interativa](https://ronybrand.github.io/rust-order-api/) é publicada no GitHub Pages a partir desse contrato.
 
 Busca: `page` (base 0), `size` (1 a 100), `sort` (`-campo` para decrescente). A forma `POST` aceita `filters`: `{"campo": [{"op": "gte", "value": 2}]}` com `eq, neq, gt, gte, lt, lte, in, between, lk`. Valores são convertidos para o tipo da coluna (tipo errado é `VALIDATION-05`), `lk` escapa `%` e `_`, campo de filtro desconhecido é ignorado e campo de ordenação desconhecido é `VALIDATION-06`.
 
