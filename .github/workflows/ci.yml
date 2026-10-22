@@ -25,7 +25,9 @@ jobs:
     timeout-minutes: 30
     services:
       postgres:
-        image: postgres:16-alpine
+        # Digests mirror docker-compose.yml: the same image runs locally and here, and a retagged
+        # upstream tag cannot change what the suite runs against.
+        image: postgres:16-alpine@sha256:deb28ee471183cb0c303113dac9b2433c51eeeeb678def7af9a9ec5820367815
         env:
           POSTGRES_USER: orders
           POSTGRES_PASSWORD: orders
@@ -33,7 +35,9 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U orders" --health-interval 5s --health-timeout 5s --health-retries 10
       rabbitmq:
-        image: rabbitmq:3.13-alpine
+        # Pinned to the digest and the variant used by docker-compose.yml, so the broker exercised
+        # by the integration tests is the one developers run.
+        image: rabbitmq:3.13-management-alpine@sha256:606d8c0d6b3c18d1da9afc53bc7cdb2a8d5486df91b5a9830e9e07626c9ae281
         ports: ["5672:5672"]
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 10
