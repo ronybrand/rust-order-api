@@ -10,6 +10,9 @@ ignore = [
   # public key, and ADR 0005 makes it refuse a private one: the vulnerable operation is never performed. `rsa` is also
   # used by the tests to make a throwaway key. Remove this entry when `rsa` has a fixed release.
   { id = "RUSTSEC-2023-0071", reason = "private-key operations only; this service verifies with the public key" },
+  # RUSTSEC-2026-0387 (timing variability in crypto-bigint operations; no fix in 0.5.x, requires >=0.7.6 but jsonwebtoken 11.1.0 pins p256/p384 on 0.13 which uses crypto-bigint 0.5).
+  # This service only verifies JWT signatures with public keys, so private-key operations are not performed.
+  { id = "RUSTSEC-2026-0387", reason = "signature verification only with public keys; upstream jsonwebtoken is on crypto-bigint 0.5" },
 ]
 
 [licenses]
