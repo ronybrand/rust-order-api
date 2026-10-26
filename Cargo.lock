@@ -641,7 +641,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12218662ccac37d9714f2191252553d67585b97df8c839cbe49e0bde278dc865"
 dependencies = [
  "cmov",
- "subtle",
 ]
 
 [[package]]
