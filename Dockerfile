@@ -6,7 +6,7 @@
 # The tag rides along with the digest: it names the image and the variant the apk call below requires, which a
 # bare digest hides from anyone reading the file. No version in this comment: Dependabot bumps the FROM line,
 # not the prose, so a number written here would silently go stale.
-FROM rust:1.99.1-alpine@sha256:3ea887915f261f273d6a24efdfdb92665dee12199923e57870453644fe4ae5c9 AS build
+FROM rust:1.99.1-alpine@sha256:44819b27be4c97b0e4d7203bd2e02c4820f97700211b6a37fb4c246a2de59383 AS build
 RUN apk add --no-cache musl-dev
 WORKDIR /src
 COPY rust-toolchain.toml Cargo.toml Cargo.lock ./
